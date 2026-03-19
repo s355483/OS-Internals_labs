@@ -50,6 +50,8 @@
 #include <test.h>
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
+#include "opt-hello.h"
+#include "hello.h"
 
 
 /*
@@ -132,6 +134,10 @@ boot(void)
 	vfs_setbootfs("emu0");
 
 	kheap_nextgeneration();
+
+	#if OPT_HELLO
+	hello();
+	#endif
 
 	/*
 	 * Make sure various things aren't screwed up.
