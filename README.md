@@ -67,3 +67,27 @@ Now keeping ourselves located in the root folder of the `os161` kernel let’s *
 sys161 kernel
 ```
 that command start the simulator with your kernel.
+
+# Utilities
+### `sudo` access
+In case you'll ever need it that's the sudo password on this version of the `os161` system:
+```
+~/os161$ sudo whoami
+[sudo] password for os161user: root
+```
+to verify you are in sudo you can launch this command the result will determine if you gained access to `sudo` or not:
+```
+sudo id -> uid=0(root) gid=0(root) groups=0(root)
+```
+if password is asked you are not a superuser.
+
+### How to change sudo password (only Docker based)
+If you forgot, or simply do not know, your mighty sudo password you i got you but only if your `os161` is running in a Docker container.
+At first you need to open an interactive shell inside the desired running container, as the root user.
+```
+docker exec -it -u root <container-id> bash
+```
+then we can change the password for our default `os161` user.
+```
+passwd os161user
+```
