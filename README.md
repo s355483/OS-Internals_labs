@@ -33,13 +33,20 @@ cd /home/os161user/.vscode-server/extensions/ms-vscode.cpptools-<CPPTOOLS_VERSIO
 chmod +x cpptools
 chmod +x cpptools-srv
 ```
+
+---
+
 # How to run the os161 kernel
 
-in `home/os161user/os161/src/kern/conf` create or use a kernel configuration file named in full uppercase, then generate the kernel build configuration with the following command (remember to stick with the previous folder):
+in `/home/os161user/os161/src/kern/conf` create or use a kernel configuration file named in full uppercase, then generate the kernel build configuration with the following command (remember to stick with the previous folder):
 ```
 ./config <KERNEL-CONFIG>
 ```
-after that we need to invoke what's so called "Holy Trinity" in that very order:
+after that we need to invoke what's so called "Holy Trinity" in that very order, but first we need to get to the correct path:
+```
+cd ../compile/<KERNEL-CONFIG>
+```
+this is the build directory for our specific kernel configuration and now we can begin this holy operation:
 ```
 bmake depend
 ```
@@ -67,6 +74,8 @@ Now keeping ourselves located in the root folder of the `os161` kernel let’s *
 sys161 kernel
 ```
 that command start the simulator with your kernel.
+
+---
 
 # Utilities
 ### `sudo` access
