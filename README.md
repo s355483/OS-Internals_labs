@@ -33,4 +33,37 @@ cd /home/os161user/.vscode-server/extensions/ms-vscode.cpptools-<CPPTOOLS_VERSIO
 chmod +x cpptools
 chmod +x cpptools-srv
 ```
+# How to run the os161 kernel
 
+in `home/os161user/os161/src/kern/conf` create or use a kernel configuration file named in full uppercase, then generate the kernel build configuration with the following command (remember to stick with the previous folder):
+```
+./config <KERNEL-CONFIG>
+```
+after that we need to invoke what's so called "Holy Trinity" in that very order:
+```
+bmake depend
+```
+It analyzes your source code and builds a dependency map. Without this step: changes might not propagate correctly and you can get weird bugs or outdated builds, it also generates internal rules used by `bmake`.
+Then we need to compile our kernel with:
+```
+bmake
+```
+it compile all the source `.c` files into object files `.o`, links them together and produces the final kernel binary.
+After that we need to install our kernel in order to run it.
+```
+bmake install
+```
+It basically copies the compiled kernel into the runtime directory. Run those 3 commands and will end up having your vibe-coded "upedated" kernell ready to create bugs and leeks all around. <br>
+In the end we need to set up our simulator configuration in order to launch our kernell.
+```
+cd /home/os161user/os161/root
+```
+First move to the runtime environment directory then, IF NEEDED, copy the simulator configuration sample into the sys161 configuration file.
+```
+cp /home/os161user/os161/tools/share/examples/sys161/sys161.conf.sample sys161.conf
+```
+Now keeping ourselves located in the root folder of the `os161` kernel let’s **light it up!🧨🔥**:
+```
+sys161 kernel
+```
+that command start the simulator with your kernel.
