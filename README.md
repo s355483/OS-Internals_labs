@@ -100,3 +100,130 @@ then we can change the password for our default `os161` user.
 ```
 passwd os161user
 ```
+
+---
+
+# Project File Tree explained
+
+From -> 📁 /home/os161user/os161/
+```
+├── .sockets/  
+│   └── Temporary files used by the sys161 emulator (do not modify)
+
+├── lab_docs/  
+│   └── Lab documentation (PDFs with assignments)
+
+├── root/   # 🖥️ Runtime environment (similar to Linux "/")
+│   ├── .sockets/  
+│   │   └── Sockets for debugging (gdb, meter)
+│   │
+│   ├── hostbin/  
+│   │   └── Programs executed on the host machine
+│   │
+│   ├── hostinclude/  
+│   │   └── Headers for host-side compilation
+│   │
+│   ├── include/  
+│   │   └── Headers available to userland programs
+│   │
+│   ├── lib/  
+│   │   └── Userland libraries
+│   │
+│   ├── man/  
+│   │   └── HTML manuals (syscalls, libc, etc.)
+│   │
+│   ├── sbin/  
+│   │   └── System programs (halt, reboot)
+│   │
+│   ├── testbin/  
+│   │   └── Test programs to verify the kernel
+│   │
+│   ├── testscripts/  
+│   │   └── Automated test scripts
+│   │
+│   ├── kernel / kernel-DUMBVM  
+│   │   └── Compiled kernel (executable)
+│   │
+│   ├── LHD0.img, LHD1.img  
+│   │   └── Virtual disks (filesystems)
+│   │
+│   └── sys161.conf  
+│       └── Emulator configuration (RAM, CPU, disks)
+
+├── src/   # 🔥 OS/161 source code
+│
+│   ├── common/  
+│   │   └── Shared code (basic libc, standard functions)
+│   │
+│   ├── design/  
+│   │   └── Conceptual system documentation
+│   │
+│   ├── kern/   # 🧠 CORE OF THE OPERATING SYSTEM
+│   │
+│   │   ├── arch/  
+│   │   │   └── Architecture-dependent code (MIPS: traps, syscall entry, TLB)
+│   │   │
+│   │   ├── compile/  
+│   │   │   └── Kernel build directories (e.g., DUMBVM)
+│   │   │
+│   │   ├── conf/  
+│   │   │   └── Kernel configuration files (GENERIC, DUMBVM)
+│   │   │
+│   │   ├── dev/  
+│   │   │   └── Device drivers (console, disk, timer)
+│   │   │
+│   │   ├── fs/  
+│   │   │   └── Filesystem implementations (SFS, SEMFS)
+│   │   │
+│   │   ├── gdbscripts/  
+│   │   │   └── Scripts for GDB debugging
+│   │   │
+│   │   ├── include/  
+│   │   │   └── Internal kernel headers
+│   │   │
+│   │   ├── lib/  
+│   │   │   └── Kernel utilities (arrays, bitmap, printf)
+│   │   │
+│   │   ├── main/  
+│   │   │   └── Kernel entry point + command menu
+│   │   │
+│   │   ├── proc/  
+│   │   │   └── Process management (LAB 2)
+│   │   │
+│   │   ├── syscall/  
+│   │   │   └── System call implementation
+│   │   │
+│   │   ├── test/  
+│   │   │   └── Internal kernel tests (threads, sync)
+│   │   │
+│   │   ├── thread/  
+│   │   │   └── Threads + synchronization (LAB 1)
+│   │   │
+│   │   ├── vfs/  
+│   │   │   └── Virtual File System (filesystem abstraction)
+│   │   │
+│   │   └── vm/  
+│   │       └── Virtual memory (advanced lab)
+│   │
+│   ├── man/  
+│   │   └── Manuals (source format)
+│   │
+│   ├── mk/  
+│   │   └── Build system (makefile framework)
+│   │
+│   ├── testscripts/  
+│   │   └── Automated test scripts
+│   │
+│   └── userland/   # 👤 User programs (run on top of the kernel)
+│       ├── include/  
+│       │   └── Userland headers
+│       │
+│       ├── lib/  
+│       │   └── Libraries (printf, malloc, etc.)
+│       │
+│       ├── sbin/  
+│       │   └── System programs (halt, reboot)
+│       │
+│       └── testbin/  
+│           └── Test programs (fork, memory, file system)
+```
