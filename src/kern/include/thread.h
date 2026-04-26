@@ -101,6 +101,7 @@ struct thread {
 	bool t_in_interrupt;		/* Are we in an interrupt? */
 	int t_curspl;			/* Current spl*() state */
 	int t_iplhigh_count;		/* # of times IPL has been raised */
+	int t_exitcode;			/* Thread exit code*/
 
 	/*
 	 * Public fields
