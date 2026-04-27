@@ -60,6 +60,20 @@
 #define DUMBVM_STACKPAGES    18
 
 /*
+ * The entry for the memmamp array for the allocation optimization
+ */
+struct memmap_entry{
+	int is_free;	// free == 1
+	int contiguous_pages_number;
+};
+
+/*
+ * The memmap array is the map of the virtual memory 
+ * initialized during vm_bootstrap()
+ */
+struct memmap_entry *memmap = NULL;
+
+/*
  * Wrap ram_stealmem in a spinlock.
  */
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
@@ -67,7 +81,46 @@ static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 void
 vm_bootstrap(void)
 {
-	/* Do nothing. */
+	paddr_t mem_dim;
+	uint32_t total_pages;
+	uint32_t memmap_bytes_size;
+	uint32_t memmap_pages;
+	paddr_t memmap_addr;
+	paddr_t first_free_addr;
+	uint32_t first_free_page_index;
+
+	// get the memory size
+	mem_dim = ram_getsize();
+	// calculate the number of pages in the virtual memory
+	total_pages = mem_dim / PAGE_SIZE;
+	// calculate the bytes required for the memmap array
+	memmap_bytes_size = total_pages * sizeof(struct memmap_entry);
+	// calculate how many pages to store memmap
+	memmap_pages = ROUNDUP(memmap_bytes_size, PAGE_SIZE) / PAGE_SIZE;
+	// steal the pages needed
+	memmap_addr = ram_stealmem(memmap_pages);
+	// create the pointer to the virtual array
+	memmap = (struct coremap_entry *)PADDR_TO_KVADDR(memmap_addr);
+
+	// get the first free addres of the physical memory
+	first_free_addr = ram_getfirstfree();
+	// get the first free page index
+	first_free_page_index = first_free_addr / PAGE_SIZE;
+
+	for (size_t i = 0; i < total_pages; i++){
+		// KERNEL PAGES
+		if(i < first_free_page_index){
+			memmap[i].is_free = 0; 
+            memmap[i].contiguous_pages_number = 0;
+		}
+		// FREE USER PAGES
+		else{
+			memmap[i].is_free = 1; 
+            memmap[i].contiguous_pages_number = 0;
+		}
+	}
+	
+
 }
 
 /*
