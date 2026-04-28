@@ -72,17 +72,23 @@ struct memmap_entry{
  * initialized during vm_bootstrap()
  */
 struct memmap_entry *memmap = NULL;
+uint32_t total_pages;
 
 /*
  * Wrap ram_stealmem in a spinlock.
  */
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 
+/*
+ * Flag to know if the system boostrapped 
+ * 0 = not bootstrapped, 1 = bootstrapped
+ */
+int vm_bootstrapped = 0;
+
 void
 vm_bootstrap(void)
 {
 	paddr_t mem_dim;
-	uint32_t total_pages;
 	uint32_t memmap_bytes_size;
 	uint32_t memmap_pages;
 	paddr_t memmap_addr;
@@ -100,7 +106,7 @@ vm_bootstrap(void)
 	// steal the pages needed
 	memmap_addr = ram_stealmem(memmap_pages);
 	// create the pointer to the virtual array
-	memmap = (struct coremap_entry *)PADDR_TO_KVADDR(memmap_addr);
+	memmap = (struct memmap_entry *)PADDR_TO_KVADDR(memmap_addr);
 
 	// get the first free addres of the physical memory
 	first_free_addr = ram_getfirstfree();
@@ -120,7 +126,7 @@ vm_bootstrap(void)
 		}
 	}
 	
-
+	vm_bootstrapped = 1;
 }
 
 /*
@@ -163,20 +169,79 @@ alloc_kpages(unsigned npages)
 {
 	paddr_t pa;
 
-	dumbvm_can_sleep();
-	pa = getppages(npages);
-	if (pa==0) {
+	if(vm_bootstrapped <= 0){
+		dumbvm_can_sleep();
+		pa = getppages(npages);
+		if (pa==0) {
+			return 0;
+		}
+		return PADDR_TO_KVADDR(pa);
+	}
+	else{
+
+		uint32_t free_pa_cnt = 0;
+
+		// Iterate thorugh the ram pages
+		for(uint32_t i = 0; i < total_pages; i++){
+			// Check if the page is currently contiguous pages number
+			if(memmap[i].is_free == 1){
+				// Update the free con
+				free_pa_cnt += 1;
+			}
+			else{
+				// If memmap is not free restart the contiguous pages count
+				free_pa_cnt = 0;
+				if(memmap[i].contiguous_pages_number > 0){
+					i += memmap[i].contiguous_pages_number;
+				}
+			}
+			if(free_pa_cnt == npages){
+				uint32_t start_index = i-npages+1;
+				for (uint32_t j = i; j >= start_index; j--){
+					memmap[j].is_free = 0;
+					memmap[j].contiguous_pages_number = 0;
+				}
+
+				memmap[start_index].contiguous_pages_number = npages;
+
+				pa = start_index * PAGE_SIZE;
+
+				return PADDR_TO_KVADDR(pa);
+			}
+		}
+
+		kprintf("alloc_kpages: Out of memory!\n");
 		return 0;
 	}
-	return PADDR_TO_KVADDR(pa);
 }
 
 void
 free_kpages(vaddr_t addr)
 {
-	/* nothing - leak the memory. */
+// 1. Se il sistema non è ancora partito, non facciamo nulla 
+    // (perché prima di vm_bootstrap la memoria rubata non si può ridare)
+    if (vm_bootstrapped <= 0) {
+        return;
+    }
 
-	(void)addr;
+    // 2. Convertiamo l'indirizzo virtuale (che ci passa il kernel) in fisico
+    // Sottraiamo l'offset del kernel (MIPS_KSEG0 che vale 0x80000000)
+    paddr_t paddr = addr - MIPS_KSEG0;
+
+    // 3. Scopriamo da quale indice dell'array era partito questo blocco
+    uint32_t start_index = paddr / PAGE_SIZE;
+
+    // 4. Leggiamo quante pagine dobbiamo liberare (ecco a cosa serviva!)
+    uint32_t pages_to_free = memmap[start_index].contiguous_pages_number;
+
+    // Se per qualche motivo leggiamo 0, c'è un errore grave (stiamo liberando memoria non nostra)
+    KASSERT(pages_to_free > 0); 
+
+    // 5. Rimettiamo le pagine a disposizione del sistema!
+    for (uint32_t i = 0; i < pages_to_free; i++) {
+        memmap[start_index + i].is_free = 1;
+        memmap[start_index + i].contiguous_pages_number = 0;
+    }
 }
 
 void
@@ -309,8 +374,23 @@ as_create(void)
 void
 as_destroy(struct addrspace *as)
 {
-	dumbvm_can_sleep();
-	kfree(as);
+// 1. Liberiamo la memoria del segmento Codice
+    if (as->as_pbase1 != 0) {
+        free_kpages(PADDR_TO_KVADDR(as->as_pbase1));
+    }
+
+    // 2. Liberiamo la memoria del segmento Dati
+    if (as->as_pbase2 != 0) {
+        free_kpages(PADDR_TO_KVADDR(as->as_pbase2));
+    }
+
+    // 3. Liberiamo la memoria dello Stack
+    if (as->as_stackpbase != 0) {
+        free_kpages(PADDR_TO_KVADDR(as->as_stackpbase));
+    }
+
+    // 4. Infine, liberiamo la struttura stessa (codice originale)
+    kfree(as);
 }
 
 void
@@ -391,26 +471,31 @@ as_zero_region(paddr_t paddr, unsigned npages)
 int
 as_prepare_load(struct addrspace *as)
 {
+	vaddr_t vaddr;
+
 	KASSERT(as->as_pbase1 == 0);
 	KASSERT(as->as_pbase2 == 0);
 	KASSERT(as->as_stackpbase == 0);
 
 	dumbvm_can_sleep();
 
-	as->as_pbase1 = getppages(as->as_npages1);
-	if (as->as_pbase1 == 0) {
+	vaddr = alloc_kpages(as->as_npages1);
+	if (vaddr == 0) {
 		return ENOMEM;
 	}
+	as->as_pbase1 = PADDR_TO_KVADDR(vaddr);
 
-	as->as_pbase2 = getppages(as->as_npages2);
-	if (as->as_pbase2 == 0) {
-		return ENOMEM;
-	}
+	vaddr = alloc_kpages(as->as_npages2);
+    if (vaddr == 0) {
+        return ENOMEM;
+    }
+    as->as_pbase2 = PADDR_TO_KVADDR(vaddr);
 
-	as->as_stackpbase = getppages(DUMBVM_STACKPAGES);
-	if (as->as_stackpbase == 0) {
-		return ENOMEM;
-	}
+	vaddr = alloc_kpages(DUMBVM_STACKPAGES);
+	if (vaddr == 0) {
+        return ENOMEM;
+    }
+	as->as_stackpbase = PADDR_TO_KVADDR(vaddr);
 
 	as_zero_region(as->as_pbase1, as->as_npages1);
 	as_zero_region(as->as_pbase2, as->as_npages2);
